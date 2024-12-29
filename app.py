@@ -52,7 +52,6 @@ if "messages" not in st.session_state:
     
 # --- Side Bar LLM API Tokens ---  
 with st.sidebar:
-    if "google_api_key" not in os.environ:
         default_google_api_key = os.getenv("google_api_key") if os.getenv("google_api_key") is not None else ""  # only for development environment, otherwise it should return None
         with st.popover("🔐 Google"):
             google_api_key = st.text_input(
@@ -70,18 +69,14 @@ with st.sidebar:
                 type="password",
                 key="anthropic_api_key",
             )
-    else:
-        google_api_key_api_key, anthropic_api_key = None, None
-        st.session_state.google_api_key = None
-        google_api_key = os.getenv("google_api_key")
-        st.session_state.google_api_key = google_api_key
+    
 
 
 # --- Main Content ---
 # Checking if the user has introduced the OpenAI API Key, if not, a warning is displayed
 missing_google = google_api_key == "" or google_api_key is None or "sk-" not in google_api_key
 missing_anthropic = anthropic_api_key == "" or anthropic_api_key is None
-if missing_google and missing_anthropic and ("google_api_key" not in os.environ):
+if missing_google and missing_anthropic:
     st.write("#")
     st.warning("⬅️ Please introduce an API Key to continue...")
 else:
