@@ -53,13 +53,13 @@ if "messages" not in st.session_state:
 # --- Side Bar LLM API Tokens ---  
 with st.sidebar:
     if "google_api_key" not in os.environ:
-        default_openai_api_key = os.getenv("OPENAI_API_KEY") if os.getenv("OPENAI_API_KEY") is not None else ""  # only for development environment, otherwise it should return None
-        with st.popover("🔐 OpenAI"):
-            openai_api_key = st.text_input(
-                "Introduce your OpenAI API Key (https://platform.openai.com/)", 
-                value=default_openai_api_key, 
+        default_google_api_key = os.getenv("google_api_key") if os.getenv("google_api_key") is not None else ""  # only for development environment, otherwise it should return None
+        with st.popover("🔐 Google"):
+            google_api_key = st.text_input(
+                "Input your Google API Key", 
+                value=default_google_api_key, 
                 type="password",
-                key="openai_api_key",
+                key="google_api_key",
             )
 
         default_anthropic_api_key = os.getenv("ANTHROPIC_API_KEY") if os.getenv("ANTHROPIC_API_KEY") is not None else ""
