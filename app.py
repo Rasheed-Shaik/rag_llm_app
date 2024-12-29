@@ -74,7 +74,7 @@ with st.sidebar:
 
 # --- Main Content ---
 # Checking if the user has introduced the OpenAI API Key, if not, a warning is displayed
-missing_google = google_api_key == "" or google_api_key is None or "sk-" not in google_api_key
+missing_google = google_api_key == "" or google_api_key is None
 missing_anthropic = anthropic_api_key == "" or anthropic_api_key is None
 if missing_google:
     st.write("#")
@@ -152,7 +152,7 @@ else:
     elif model_provider == "google":
         llm_stream = ChatGoogleGenerativeAI(
             model=st.session_state.model.split("/")[-1],
-            google_api_key=os.getenv("google_api_key"),
+            google_api_key=google_api_key,
             temperature=0.3,
             streaming=True,
             
