@@ -76,7 +76,7 @@ with st.sidebar:
 # Checking if the user has introduced the OpenAI API Key, if not, a warning is displayed
 missing_google = google_api_key == "" or google_api_key is None or "sk-" not in google_api_key
 missing_anthropic = anthropic_api_key == "" or anthropic_api_key is None
-if missing_google and missing_anthropic:
+if missing_google:
     st.write("#")
     st.warning("⬅️ Please introduce an API Key to continue...")
 else:
