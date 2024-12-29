@@ -23,6 +23,24 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 import chromadb
 from chromadb.config import Settings
 
+
+import tempfile
+
+from typing import List
+from pathlib import Path
+from langchain.schema import Document, HumanMessage, AIMessage
+from langchain.embeddings import HuggingFaceEmbeddings
+
+
+from langchain_community.document_loaders import (
+    WebBaseLoader, 
+    PyPDFLoader, 
+    Docx2txtLoader,
+    TextLoader,
+)
+import chromadb
+from chromadb.config import Settings
+
 dotenv.load_dotenv()
 
 DB_DOCS_LIMIT = 10
@@ -100,7 +118,6 @@ def load_url_to_db():
             else:
                 st.error("Maximum number of documents reached (10).")
 
-
 def initialize_vector_db(docs: List[Document]):
     """
     Initialize vector database with cloud-compatible configuration
@@ -115,7 +132,7 @@ def initialize_vector_db(docs: List[Document]):
         
         # Create a temporary directory for ChromaDB
         temp_dir = tempfile.mkdtemp()
-        print(f"Created temporary directory at: {temp_dir}")  # For debugging
+        print(f"Created temporary directory at: {temp_dir}")
         
         # Initialize ChromaDB with settings for cloud deployment
         chroma_settings = Settings(
@@ -125,7 +142,7 @@ def initialize_vector_db(docs: List[Document]):
         )
         
         # Create a unique collection name
-        collection_name = f"{str(time.time()).replace('.', '')[:14]}_{st.session_state['session_id']}"
+        collection_name = f"collection_{st.session_state['session_id']}"
         
         # Initialize vector store
         vector_db = Chroma.from_documents(
@@ -140,51 +157,47 @@ def initialize_vector_db(docs: List[Document]):
         
     except Exception as e:
         error_msg = f"Vector database initialization failed: {str(e)}"
-        print(f"Detailed error: {error_msg}")  # For logging
+        print(f"Detailed error: {error_msg}")
         st.error("Unable to process documents. Please try again.")
-        raise Exception(error_msg)
-Last edited 1 minute ago
+        return None
+
 
 def _split_and_load_docs(docs: List[Document]):
     """
     Split documents and load them into the vector database
     """
+    if not docs:
+        return
+        
     try:
-        # Initialize text splitter
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=5000,
             chunk_overlap=1000
         )
         
-        # Split documents
         document_chunks = text_splitter.split_documents(docs)
         
         if not document_chunks:
             st.warning("No content was extracted from the documents.")
             return
             
-        try:
-            if "vector_db" not in st.session_state:
-                st.session_state.vector_db = initialize_vector_db(document_chunks)
-            else:
-                # For subsequent additions, create a new store
-                # This is more reliable in cloud environments
-                new_vector_db = initialize_vector_db(document_chunks)
-                # Merge the results at query time if needed
-                if isinstance(st.session_state.vector_db, Chroma):
-                    st.session_state.vector_db = new_vector_db
-                
-        except Exception as db_error:
-            print(f"Database operation failed: {str(db_error)}")
-            st.error("Error loading documents. Please try again.")
-            raise Exception(f"Database operation failed: {str(db_error)}")
+        if "vector_db" not in st.session_state or st.session_state.vector_db is None:
+            vector_db = initialize_vector_db(document_chunks)
+            if vector_db is not None:
+                st.session_state.vector_db = vector_db
+        else:
+            try:
+                st.session_state.vector_db.add_documents(document_chunks)
+            except Exception as add_error:
+                print(f"Error adding documents: {add_error}")
+                # Try to reinitialize
+                vector_db = initialize_vector_db(document_chunks)
+                if vector_db is not None:
+                    st.session_state.vector_db = vector_db
             
     except Exception as e:
-        error_msg = f"Document processing failed: {str(e)}"
-        print(f"Detailed error: {error_msg}")  # For logging
+        print(f"Document processing error: {str(e)}")
         st.error("Error processing documents. Please try again.")
-        raise Exception(error_msg)
-
 # --- Retrieval Augmented Generation (RAG) Phase ---
 
 def _get_context_retriever_chain(vector_db, llm):

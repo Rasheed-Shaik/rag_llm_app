@@ -84,12 +84,11 @@ else:
         st.divider()
         models = []
         for model in MODELS:
-            if "openai" in model and not missing_openai:
+            if "google" in model and not missing_google:
                 models.append(model)
             elif "anthropic" in model and not missing_anthropic:
                 models.append(model)
-            elif "google" in model:
-                models.append(model)
+            
 
         st.selectbox(
             "🤖 Select a Model", 
@@ -98,14 +97,16 @@ else:
         )
 
         cols0 = st.columns(2)
+        if "vector_db" not in st.session_state:
+          st.session_state.vector_db = None
         with cols0[0]:
-            is_vector_db_loaded = ("vector_db" in st.session_state and st.session_state.vector_db is not None)
+            is_vector_db_loaded = (st.session_state.vector_db is not None)
             st.toggle(
-                "Use RAG", 
-                value=is_vector_db_loaded, 
-                key="use_rag", 
-                disabled=not is_vector_db_loaded,
-            )
+              "Use RAG", 
+              value=is_vector_db_loaded, 
+              key="use_rag", 
+              disabled=not is_vector_db_loaded,
+)
         with cols0[1]:
                 st.button("Clear Chat", on_click=lambda: st.session_state.messages.clear(), type="primary")
         
