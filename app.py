@@ -24,7 +24,7 @@ from rag_methods import (load_doc_to_db,
 dotenv.load_dotenv()
 
 
-MODELS = ["google/gemini-2.0-flash-exp"]
+MODELS = ["google/gemini-1.5-flash-8b"]
 
 
 st.set_page_config(
