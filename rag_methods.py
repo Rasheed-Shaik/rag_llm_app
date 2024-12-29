@@ -20,6 +20,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
+import chromadb
+from chromadb.config import Settings
 
 dotenv.load_dotenv()
 
@@ -99,9 +101,9 @@ def load_url_to_db():
                 st.error("Maximum number of documents reached (10).")
 
 
-def initialize_vector_db(docs):
+def initialize_vector_db(docs: List[Document]):
     """
-    Initialize vector database with HuggingFace embeddings using direct ChromaDB configuration
+    Initialize vector database with cloud-compatible configuration
     """
     try:
         # Initialize embedding function
@@ -111,72 +113,77 @@ def initialize_vector_db(docs):
             model_kwargs={"trust_remote_code": True}
         )
         
+        # Create a temporary directory for ChromaDB
+        temp_dir = tempfile.mkdtemp()
+        print(f"Created temporary directory at: {temp_dir}")  # For debugging
+        
+        # Initialize ChromaDB with settings for cloud deployment
+        chroma_settings = Settings(
+            is_persistent=True,
+            persist_directory=temp_dir,
+            anonymized_telemetry=False
+        )
+        
         # Create a unique collection name
         collection_name = f"{str(time.time()).replace('.', '')[:14]}_{st.session_state['session_id']}"
         
-        # Initialize ChromaDB with minimal settings (in-memory)
-        import chromadb
-        chroma_client = chromadb.Client()
-        
-        # Initialize Chroma through langchain with the configured client
+        # Initialize vector store
         vector_db = Chroma.from_documents(
             documents=docs,
             embedding=embedding_function,
             collection_name=collection_name,
-            client=chroma_client  # Pass the configured client directly
+            persist_directory=temp_dir,
+            client_settings=chroma_settings
         )
         
-        # Cleanup old collections
-        collections = chroma_client.list_collections()
-        collection_names = sorted([collection.name for collection in collections])
-        
-        while len(collection_names) > 20:
-            try:
-                chroma_client.delete_collection(collection_names[0])
-                print(f"Deleted old collection: {collection_names[0]}")
-                collection_names.pop(0)
-            except Exception as e:
-                print(f"Error deleting collection {collection_names[0]}: {e}")
-                collection_names.pop(0)
-                continue
-        
         return vector_db
-    
+        
     except Exception as e:
-        error_msg = f"Failed to initialize vector database: {str(e)}"
-        print(error_msg)  # Log the full error
-        st.error("Error initializing vector database. Please try again.")
+        error_msg = f"Vector database initialization failed: {str(e)}"
+        print(f"Detailed error: {error_msg}")  # For logging
+        st.error("Unable to process documents. Please try again.")
         raise Exception(error_msg)
+Last edited 1 minute ago
 
-def _split_and_load_docs(docs):
+def _split_and_load_docs(docs: List[Document]):
     """
     Split documents and load them into the vector database
     """
     try:
+        # Initialize text splitter
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=5000,
-            chunk_overlap=1000,
+            chunk_overlap=1000
         )
-
+        
+        # Split documents
         document_chunks = text_splitter.split_documents(docs)
-
-        if "vector_db" not in st.session_state:
-            st.session_state.vector_db = initialize_vector_db(document_chunks)
-        else:
-            try:
-                st.session_state.vector_db.add_documents(document_chunks)
-            except Exception as add_error:
-                # If adding documents fails, reinitialize the vector store
-                print(f"Error adding documents, reinitializing vector store: {add_error}")
+        
+        if not document_chunks:
+            st.warning("No content was extracted from the documents.")
+            return
+            
+        try:
+            if "vector_db" not in st.session_state:
                 st.session_state.vector_db = initialize_vector_db(document_chunks)
+            else:
+                # For subsequent additions, create a new store
+                # This is more reliable in cloud environments
+                new_vector_db = initialize_vector_db(document_chunks)
+                # Merge the results at query time if needed
+                if isinstance(st.session_state.vector_db, Chroma):
+                    st.session_state.vector_db = new_vector_db
+                
+        except Exception as db_error:
+            print(f"Database operation failed: {str(db_error)}")
+            st.error("Error loading documents. Please try again.")
+            raise Exception(f"Database operation failed: {str(db_error)}")
             
     except Exception as e:
-        error_msg = f"Error processing documents: {str(e)}"
-        print(error_msg)  # Log the full error
+        error_msg = f"Document processing failed: {str(e)}"
+        print(f"Detailed error: {error_msg}")  # For logging
         st.error("Error processing documents. Please try again.")
         raise Exception(error_msg)
-
-
 
 # --- Retrieval Augmented Generation (RAG) Phase ---
 
