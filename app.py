@@ -23,7 +23,7 @@ from rag_methods import (
 dotenv.load_dotenv()
 
 
-MODELS = ["google/gemini-1.5-flash-8b"]
+MODELS = ["google/gemini-2.0-flash-exp"]
 
 
 st.set_page_config(
