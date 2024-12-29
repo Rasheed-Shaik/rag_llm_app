@@ -101,7 +101,9 @@ def load_url_to_db():
 
 def initialize_vector_db(docs):
         if "google_api_key" not in os.environ:
-          embedding = OpenAIEmbeddings(api_key=st.session_state.openai_api_key)
+          model_name = "Alibaba-NLP/gte-large-en-v1.5"
+        # Initialize HuggingFaceEmbeddings with the model name (not the model object)
+          embedding_function = HuggingFaceEmbeddings(model_name=model_name, model_kwargs={"trust_remote_code": True})
         else:
           model_name = "Alibaba-NLP/gte-large-en-v1.5"
         # Initialize HuggingFaceEmbeddings with the model name (not the model object)
