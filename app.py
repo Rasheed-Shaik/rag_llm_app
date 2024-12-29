@@ -137,7 +137,7 @@ else:
     model_provider = st.session_state.model.split("/")[0]
     if model_provider == "openai":
         llm_stream = ChatOpenAI(
-            api_key=openai_api_key,
+            api_key=google_api_key,
             model_name=st.session_state.model.split("/")[-1],
             temperature=0.3,
             streaming=True,
