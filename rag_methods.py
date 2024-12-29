@@ -110,8 +110,8 @@ def initialize_vector_db(docs):
         vector_db = Chroma.from_documents(
             documents=docs,
             embedding=embedding_function,
-            collection_name=f"{int(time.time())}_{st.session_state['session_id']}",
-             persist_directory=None  # Specify explicitly for clarity
+            collection_name=f"{str(time.time()).replace('.', '')[:14]}_" + st.session_state['session_id'],
+            persist_directory=None  # Specify explicitly for clarity
         )
 
         
