@@ -71,17 +71,17 @@ with st.sidebar:
                 key="anthropic_api_key",
             )
     else:
-        openai_api_key, anthropic_api_key = None, None
-        st.session_state.openai_api_key = None
+        google_api_key_api_key, anthropic_api_key = None, None
+        st.session_state.google_api_key = None
         google_api_key = os.getenv("google_api_key")
         st.session_state.google_api_key = google_api_key
 
 
 # --- Main Content ---
 # Checking if the user has introduced the OpenAI API Key, if not, a warning is displayed
-missing_openai = openai_api_key == "" or openai_api_key is None or "sk-" not in openai_api_key
+missing_google = google_api_key == "" or google_api_key is None or "sk-" not in google_api_key
 missing_anthropic = anthropic_api_key == "" or anthropic_api_key is None
-if missing_openai and missing_anthropic and ("google_api_key" not in os.environ):
+if missing_google and missing_anthropic and ("google_api_key" not in os.environ):
     st.write("#")
     st.warning("⬅️ Please introduce an API Key to continue...")
 else:
