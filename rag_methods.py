@@ -100,45 +100,75 @@ def load_url_to_db():
 
 
 def initialize_vector_db(docs):
+    """
+    Initialize vector database with HuggingFace embeddings and proper collection management
+    """
+    try:
+        # Initialize embedding function
         model_name = "Alibaba-NLP/gte-large-en-v1.5"
         embedding_function = HuggingFaceEmbeddings(
-        model_name=model_name,
-        model_kwargs={"trust_remote_code": True}
-    )
+            model_name=model_name,
+            model_kwargs={"trust_remote_code": True}
+        )
         
-
+        # Create a unique collection name using timestamp and session ID
+        collection_name = f"{str(time.time()).replace('.', '')[:14]}_{st.session_state['session_id']}"
+        
+        # Initialize Chroma with persistence configuration
         vector_db = Chroma.from_documents(
             documents=docs,
             embedding=embedding_function,
-            collection_name=f"{str(time.time()).replace('.', '')[:14]}_" + st.session_state['session_id'],
-            persist_directory=None  # Specify explicitly for clarity
+            collection_name=collection_name,
+            client_settings=None  # This will use default in-memory settings
         )
-
         
-    
-         # We need to manage the number of collections that we have in memory, we will keep the last 20
+        # Manage collections cleanup
         chroma_client = vector_db._client
-        collection_names = sorted([collection.name for collection in chroma_client.list_collections()])
-        print("Number of collections:", len(collection_names))
+        collections = chroma_client.list_collections()
+        collection_names = sorted([collection.name for collection in collections])
+        
+        # Keep only the most recent 20 collections
         while len(collection_names) > 20:
-          chroma_client.delete_collection(collection_names[0])
-          collection_names.pop(0)
-
+            try:
+                chroma_client.delete_collection(collection_names[0])
+                print(f"Deleted old collection: {collection_names[0]}")
+                collection_names.pop(0)
+            except Exception as e:
+                print(f"Error deleting collection {collection_names[0]}: {e}")
+                collection_names.pop(0)  # Skip problematic collection
+                continue
+        
         return vector_db
+    
+    except Exception as e:
+        error_msg = f"Failed to initialize vector database: {str(e)}"
+        st.error(error_msg)
+        print(error_msg)
+        raise Exception(error_msg)
 
 
 def _split_and_load_docs(docs):
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=5000,
-        chunk_overlap=1000,
-    )
+    """
+    Split documents and load them into the vector database
+    """
+    try:
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=5000,
+            chunk_overlap=1000,
+        )
 
-    document_chunks = text_splitter.split_documents(docs)
+        document_chunks = text_splitter.split_documents(docs)
 
-    if "vector_db" not in st.session_state:
-        st.session_state.vector_db = initialize_vector_db(docs)
-    else:
-        st.session_state.vector_db.add_documents(document_chunks)
+        if "vector_db" not in st.session_state:
+            st.session_state.vector_db = initialize_vector_db(document_chunks)
+        else:
+            st.session_state.vector_db.add_documents(document_chunks)
+            
+    except Exception as e:
+        error_msg = f"Error processing documents: {str(e)}"
+        st.error(error_msg)
+        print(error_msg)
+        raise Exception(error_msg)
 
 
 
