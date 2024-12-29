@@ -101,7 +101,7 @@ def load_url_to_db():
 
 def initialize_vector_db(docs):
     """
-    Initialize vector database with HuggingFace embeddings and proper collection management
+    Initialize vector database with HuggingFace embeddings using direct ChromaDB configuration
     """
     try:
         # Initialize embedding function
@@ -111,23 +111,25 @@ def initialize_vector_db(docs):
             model_kwargs={"trust_remote_code": True}
         )
         
-        # Create a unique collection name using timestamp and session ID
+        # Create a unique collection name
         collection_name = f"{str(time.time()).replace('.', '')[:14]}_{st.session_state['session_id']}"
         
-        # Initialize Chroma with persistence configuration
+        # Initialize ChromaDB with minimal settings (in-memory)
+        import chromadb
+        chroma_client = chromadb.Client()
+        
+        # Initialize Chroma through langchain with the configured client
         vector_db = Chroma.from_documents(
             documents=docs,
             embedding=embedding_function,
             collection_name=collection_name,
-            client_settings=None  # This will use default in-memory settings
+            client=chroma_client  # Pass the configured client directly
         )
         
-        # Manage collections cleanup
-        chroma_client = vector_db._client
+        # Cleanup old collections
         collections = chroma_client.list_collections()
         collection_names = sorted([collection.name for collection in collections])
         
-        # Keep only the most recent 20 collections
         while len(collection_names) > 20:
             try:
                 chroma_client.delete_collection(collection_names[0])
@@ -135,17 +137,16 @@ def initialize_vector_db(docs):
                 collection_names.pop(0)
             except Exception as e:
                 print(f"Error deleting collection {collection_names[0]}: {e}")
-                collection_names.pop(0)  # Skip problematic collection
+                collection_names.pop(0)
                 continue
         
         return vector_db
     
     except Exception as e:
         error_msg = f"Failed to initialize vector database: {str(e)}"
-        st.error(error_msg)
-        print(error_msg)
+        print(error_msg)  # Log the full error
+        st.error("Error initializing vector database. Please try again.")
         raise Exception(error_msg)
-
 
 def _split_and_load_docs(docs):
     """
@@ -162,12 +163,17 @@ def _split_and_load_docs(docs):
         if "vector_db" not in st.session_state:
             st.session_state.vector_db = initialize_vector_db(document_chunks)
         else:
-            st.session_state.vector_db.add_documents(document_chunks)
+            try:
+                st.session_state.vector_db.add_documents(document_chunks)
+            except Exception as add_error:
+                # If adding documents fails, reinitialize the vector store
+                print(f"Error adding documents, reinitializing vector store: {add_error}")
+                st.session_state.vector_db = initialize_vector_db(document_chunks)
             
     except Exception as e:
         error_msg = f"Error processing documents: {str(e)}"
-        st.error(error_msg)
-        print(error_msg)
+        print(error_msg)  # Log the full error
+        st.error("Error processing documents. Please try again.")
         raise Exception(error_msg)
 
 
